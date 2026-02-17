@@ -12,21 +12,32 @@
       <header class="topbar">
         <h1>MindMap Studio</h1>
         <div class="toolbar">
-          <button id="add-child">+ Child</button>
-          <button id="add-sibling">+ Sibling</button>
-          <button id="layout-horizontal">Layout ↔</button>
-          <button id="layout-vertical">Layout ↕</button>
-          <button id="export-map">Export</button>
-          <label class="file-label">Import<input id="import-map" type="file" accept="application/json" /></label>
-          <button id="reset-map">Reset</button>
-          <button id="toggle-theme">🌙</button>
+          <button id="add-child" title="Add child node">+ Child</button>
+          <button id="add-sibling" title="Add sibling node">+ Sibling</button>
+          <button id="layout-horizontal" title="Auto layout left to right">Layout ↔</button>
+          <button id="layout-vertical" title="Auto layout top to bottom">Layout ↕</button>
+          <button id="zoom-in" title="Zoom in">+</button>
+          <button id="zoom-out" title="Zoom out">−</button>
+          <button id="fit-view" title="Fit map to screen">Fit</button>
+          <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+          <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+          <button id="export-map" title="Export JSON">Export</button>
+          <label class="file-label" title="Import JSON">Import<input id="import-map" type="file" accept="application/json" /></label>
+          <button id="reset-map" title="Reset map">Reset</button>
+          <button id="toggle-theme" title="Toggle theme">🌙</button>
         </div>
       </header>
 
       <main class="layout">
         <section id="canvas-wrap">
-          <svg id="edges"></svg>
-          <div id="canvas"></div>
+          <div class="canvas-hud">
+            <input id="search-node" type="search" placeholder="Search node..." />
+            <span id="status"></span>
+          </div>
+          <div id="viewport">
+            <svg id="edges"></svg>
+            <div id="canvas"></div>
+          </div>
         </section>
 
         <aside class="sidepanel">
@@ -38,11 +49,11 @@
             <button id="delete-node" class="danger">Delete node</button>
           </div>
           <div class="tips">
-            <h3>Capacitor-ready</h3>
+            <h3>Production workflow hints</h3>
             <ul>
-              <li>Frontend-only and local-first.</li>
-              <li>Touch drag, mobile-safe controls, responsive split view.</li>
-              <li>JSON import/export for file sharing.</li>
+              <li>Automatic save, undo/redo and import validation included.</li>
+              <li>Touch drag + zoom controls for mobile practicality.</li>
+              <li>GitHub Actions workflow added for build verification.</li>
             </ul>
           </div>
         </aside>

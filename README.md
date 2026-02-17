@@ -1,41 +1,53 @@
 # MindMap Studio (Vite + Vanilla JS)
 
-A responsive, touch-friendly mind map app built for practical daily use.
+A responsive, touch-friendly mind map app designed for practical usage on desktop, mobile, and Capacitor Android wrappers.
 
 ## Features
 
-- Create, connect, edit, and delete nodes.
-- Add child and sibling nodes quickly.
-- Drag-and-drop node placement with auto-layout (left-right or top-bottom).
-- Node editor with title, notes, and color.
-- Persist map data in local storage.
-- Import/export maps as JSON files.
-- Responsive layout for desktop and mobile screens.
-- Capacitor-friendly architecture (frontend-only, no backend dependency).
+- Tree-based node management: create child/sibling nodes, drag positioning, subtree deletion.
+- Productive editing: label, notes, color, search highlight, and quick selection.
+- View controls: pan canvas, wheel zoom, zoom buttons, and fit-to-view.
+- Productivity helpers: undo/redo history and keyboard shortcuts.
+- Data safety: localStorage persistence, JSON import/export, and import validation.
+- Responsive UI with mobile-safe touch behavior and safe-area handling.
 
-## Run locally
+## Keyboard shortcuts
+
+- `Ctrl/Cmd + Z`: Undo
+- `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y`: Redo
+- `Delete`: Delete selected non-root node
+
+## Local development
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Build
+## Production build
 
 ```bash
 npm run build
 npm run preview
 ```
 
+## GitHub workflow (web build)
+
+This repo includes `.github/workflows/web-build.yml`:
+
+- Runs on pushes, pull requests, and manual triggers.
+- Installs dependencies via `npm ci`.
+- Builds via `npm run build`.
+- Uploads `dist` as a CI artifact (`web-dist`).
+
 ## Capacitor integration notes
 
-This app is already suitable for a Capacitor Android shell because it is fully client-side.
+This app is frontend-only and suitable for Capacitor Android integration.
 
-Typical next steps:
+Typical steps:
 
-1. Build web assets: `npm run build`
+1. Build assets: `npm run build`
 2. Initialize Capacitor: `npx cap init`
 3. Add Android platform: `npx cap add android`
 4. Sync assets: `npx cap sync android`
 5. Open Android Studio: `npx cap open android`
-
