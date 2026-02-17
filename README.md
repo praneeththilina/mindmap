@@ -4,17 +4,27 @@ A responsive, touch-friendly mind map app designed for practical usage on deskto
 
 ## Features
 
-- Tree-based node management: create child/sibling nodes, drag positioning, subtree deletion.
-- Productive editing: label, notes, color, search highlight, and quick selection.
+- Tree-based topic management: create child/sibling/floating topics, drag positioning, subtree deletion/duplication, branch collapse, and balanced mind-map layout.
+- Productive editing: label, notes, color, priority/progress markers, search highlight, focus mode, and branch collapse.
 - View controls: pan canvas, wheel zoom, zoom buttons, and fit-to-view.
 - Productivity helpers: undo/redo history and keyboard shortcuts.
-- Data safety: localStorage persistence, JSON import/export, and import validation.
+- Data safety: localStorage persistence, JSON + Markdown import/export, import validation, and relationship-link persistence.
 - Responsive UI with mobile-safe touch behavior and safe-area handling.
+- Templates gallery and command palette for fast map operations.
+- Relationship mode for non-tree links between topics (XMind-style).
 
 ## Keyboard shortcuts
 
 - `Ctrl/Cmd + Z`: Undo
 - `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y`: Redo
+- `Tab`: Add child node
+- `Enter`: Add sibling node
+- `Space`: Collapse/expand selected branch
+- `Arrow keys`: Navigate parent/child/sibling nodes
+- `Ctrl/Cmd + D`: Duplicate selected subtree
+- `Ctrl/Cmd + K`: Open command palette
+- `F`: Toggle focus mode for selected subtree
+- `R`: Toggle relationship mode
 - `Delete`: Delete selected non-root node
 
 ## Local development
@@ -40,6 +50,18 @@ This repo includes `.github/workflows/web-build.yml`:
 - Installs dependencies via `npm ci`.
 - Builds via `npm run build`.
 - Uploads `dist` as a CI artifact (`web-dist`).
+
+
+## GitHub Pages deployment
+
+This repo includes `.github/workflows/deploy-pages.yml` to deploy the Vite app to GitHub Pages.
+
+- Runs on pushes to `main` and manual dispatch.
+- Detects the correct Vite base path automatically:
+  - `/<repo>/` for project pages
+  - `/` for `<user>.github.io` repos
+- Builds with `npm ci && npm run build`.
+- Publishes `dist/` via the official Pages actions.
 
 ## Capacitor integration notes
 
