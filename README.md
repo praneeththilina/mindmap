@@ -37,6 +37,7 @@ This repo includes `.github/workflows/web-build.yml`:
 
 - Runs on pushes, pull requests, and manual triggers.
 - Installs dependencies via `npm install` and disables setup-node package-manager cache to avoid lockfile checks.
+- Installs dependencies via `npm ci`.
 - Builds via `npm run build`.
 - Uploads `dist` as a CI artifact (`web-dist`).
 
