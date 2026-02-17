@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>MindMap Studio</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <h1>MindMap Studio</h1>
+        <div class="toolbar">
+          <button id="add-child" title="Add child node">+ Child</button>
+          <button id="add-sibling" title="Add sibling node">+ Sibling</button>
+          <button id="layout-horizontal" title="Auto layout left to right">Layout ↔</button>
+          <button id="layout-vertical" title="Auto layout top to bottom">Layout ↕</button>
+          <button id="zoom-in" title="Zoom in">+</button>
+          <button id="zoom-out" title="Zoom out">−</button>
+          <button id="fit-view" title="Fit map to screen">Fit</button>
+          <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+          <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+          <button id="export-map" title="Export JSON">Export</button>
+          <label class="file-label" title="Import JSON">Import<input id="import-map" type="file" accept="application/json" /></label>
+          <button id="reset-map" title="Reset map">Reset</button>
+          <button id="toggle-theme" title="Toggle theme">🌙</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section id="canvas-wrap">
+          <div class="canvas-hud">
+            <input id="search-node" type="search" placeholder="Search node..." />
+            <span id="status"></span>
+          </div>
+          <div id="viewport">
+            <svg id="edges"></svg>
+            <div id="canvas"></div>
+          </div>
+        </section>
+
+        <aside class="sidepanel">
+          <h2>Node details</h2>
+          <div class="editor">
+            <label>Label<input id="node-label" type="text" placeholder="Node title" /></label>
+            <label>Notes<textarea id="node-note" rows="6" placeholder="Details, todos, links..."></textarea></label>
+            <label>Color<input id="node-color" type="color" /></label>
+            <button id="delete-node" class="danger">Delete node</button>
+          </div>
+          <div class="tips">
+            <h3>Production workflow hints</h3>
+            <ul>
+              <li>Automatic save, undo/redo and import validation included.</li>
+              <li>Touch drag + zoom controls for mobile practicality.</li>
+              <li>GitHub Actions workflow added for build verification.</li>
+            </ul>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
