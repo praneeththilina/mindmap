@@ -68,6 +68,8 @@ This repo includes `.github/workflows/deploy-pages.yml` to deploy the Vite app t
 > - Branch: **gh-pages** / **(root)**
 
 This avoids the `configure-pages` API permission issue (`Resource not accessible by integration`) in repos where the workflow token cannot create/manage the Pages site via REST.
+- Publishes `dist/` via the official Pages actions.
+- Ensures Pages is enabled from workflow (`enablement: true`) to avoid `Get Pages site failed` on first deployment.
 
 ## Capacitor integration notes
 
