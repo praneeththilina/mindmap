@@ -62,6 +62,7 @@ This repo includes `.github/workflows/deploy-pages.yml` to deploy the Vite app t
   - `/` for `<user>.github.io` repos
 - Builds with `npm ci && npm run build`.
 - Publishes `dist/` via the official Pages actions.
+- Ensures Pages is enabled from workflow (`enablement: true`) to avoid `Get Pages site failed` on first deployment.
 
 ## Capacitor integration notes
 
