@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>MindMap Studio</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <h1>MindMap Studio</h1>
+        <div class="toolbar">
+          <button id="add-child">+ Child</button>
+          <button id="add-sibling">+ Sibling</button>
+          <button id="layout-horizontal">Layout ↔</button>
+          <button id="layout-vertical">Layout ↕</button>
+          <button id="export-map">Export</button>
+          <label class="file-label">Import<input id="import-map" type="file" accept="application/json" /></label>
+          <button id="reset-map">Reset</button>
+          <button id="toggle-theme">🌙</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section id="canvas-wrap">
+          <svg id="edges"></svg>
+          <div id="canvas"></div>
+        </section>
+
+        <aside class="sidepanel">
+          <h2>Node details</h2>
+          <div class="editor">
+            <label>Label<input id="node-label" type="text" placeholder="Node title" /></label>
+            <label>Notes<textarea id="node-note" rows="6" placeholder="Details, todos, links..."></textarea></label>
+            <label>Color<input id="node-color" type="color" /></label>
+            <button id="delete-node" class="danger">Delete node</button>
+          </div>
+          <div class="tips">
+            <h3>Capacitor-ready</h3>
+            <ul>
+              <li>Frontend-only and local-first.</li>
+              <li>Touch drag, mobile-safe controls, responsive split view.</li>
+              <li>JSON import/export for file sharing.</li>
+            </ul>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
