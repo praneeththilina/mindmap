@@ -36,7 +36,7 @@ npm run preview
 This repo includes `.github/workflows/web-build.yml`:
 
 - Runs on pushes, pull requests, and manual triggers.
-- Installs dependencies via `npm install` (works even when lockfile is not present).
+- Installs dependencies via `npm ci`.
 - Builds via `npm run build`.
 - Uploads `dist` as a CI artifact (`web-dist`).
 
