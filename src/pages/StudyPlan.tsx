@@ -15,10 +15,11 @@ import {
   Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
 import { BottomNav } from '../components/BottomNav';
 import { AddDeadlineModal } from '../components/AddDeadlineModal';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 import type { Map } from '../types';
 
 interface Deadline {
@@ -39,6 +40,8 @@ export const StudyPlan = () => {
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteDeadlineId, setDeleteDeadlineId] = useState<string | null>(null);
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
   const [smartSuggestion, setSmartSuggestion] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'incomplete' | 'completed'>('all');
@@ -49,8 +52,8 @@ export const StudyPlan = () => {
     const fetchData = async () => {
       try {
         const [mapsRes, deadlinesRes] = await Promise.all([
-          fetch('/api/maps'),
-          fetch('/api/deadlines')
+          apiFetch('/api/maps'),
+          apiFetch('/api/deadlines')
         ]);
         const mapsData = await mapsRes.json();
         const deadlinesData = await deadlinesRes.json();
@@ -69,7 +72,7 @@ export const StudyPlan = () => {
 
   const handleAddDeadline = async (newDeadline: { title: string; due_date: string; priority: 'high' | 'medium' | 'low' }) => {
     try {
-      const res = await fetch('/api/deadlines', {
+      const res = await apiFetch('/api/deadlines', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDeadline)
@@ -88,7 +91,7 @@ export const StudyPlan = () => {
     setDeadlines(prev => prev.map(d => d.id === id ? { ...d, is_completed: !currentStatus } : d));
 
     try {
-      await fetch(`/api/deadlines/${id}`, {
+      await apiFetch(`/api/deadlines/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_completed: !currentStatus })
@@ -100,33 +103,41 @@ export const StudyPlan = () => {
     }
   };
 
-  const handleDeleteDeadline = async (id: string) => {
-    if (!window.confirm("Delete this deadline?")) return;
+  const handleDeleteDeadline = (id: string) => {
+    setDeleteDeadlineId(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteDeadline = async () => {
+    if (!deleteDeadlineId) return;
     
     // Optimistic update
-    setDeadlines(prev => prev.filter(d => d.id !== id));
+    setDeadlines(prev => prev.filter(d => d.id !== deleteDeadlineId));
 
     try {
-      await fetch(`/api/deadlines/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/deadlines/${deleteDeadlineId}`, { method: 'DELETE' });
     } catch (error) {
       console.error("Failed to delete deadline:", error);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setDeleteDeadlineId(null);
     }
   };
 
   const handleSmartSchedule = async () => {
     setIsGeneratingSchedule(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const pendingDeadlines = deadlines.filter(d => !d.is_completed).map(d => `${d.title} (Due: ${d.due_date}, Priority: ${d.priority})`).join(', ');
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Given these pending deadlines: [${pendingDeadlines}], suggest a concise 1-sentence study focus for today. Be encouraging.`,
+      const res = await apiFetch('/api/ai/smart-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deadlines: pendingDeadlines })
       });
+      const data = await res.json();
 
-      setSmartSuggestion(response.text);
+      setSmartSuggestion(data.suggestion);
       
-      // Auto-hide suggestion after 10 seconds
       setTimeout(() => setSmartSuggestion(null), 10000);
     } catch (error) {
       console.error("Smart schedule failed:", error);
@@ -245,12 +256,17 @@ export const StudyPlan = () => {
       return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
     });
 
-  const calculateDaysRemaining = (dateStr: string) => {
+  const calculateDaysRemaining = (dateStr: string): number => {
     const diff = new Date(dateStr).getTime() - new Date().getTime();
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days;
+  };
+
+  const getDaysRemainingText = (dateStr: string): string => {
+    const days = calculateDaysRemaining(dateStr);
     if (days < 0) return "Overdue";
     if (days === 0) return "Today";
-    return days;
+    return `${days} days`;
   };
 
   if (isLoading) {
@@ -383,16 +399,14 @@ export const StudyPlan = () => {
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
                       fill="none" 
                       stroke="currentColor" 
-                      strokeDasharray={`${Math.max(0, Math.min(100, (100 - (typeof calculateDaysRemaining(highPriorityDeadline.due_date) === 'number' ? (calculateDaysRemaining(highPriorityDeadline.due_date) as number) * 10 : 100)))), 100}`}
+                      strokeDasharray={`${Math.max(0, Math.min(100, calculateDaysRemaining(highPriorityDeadline.due_date) * 10)), 100}`}
                       strokeWidth="3"
                       strokeLinecap="round"
                     ></path>
                   </svg>
                   <div className="flex flex-col items-center leading-none z-10">
                     <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
-                      {typeof calculateDaysRemaining(highPriorityDeadline.due_date) === 'number' 
-                        ? calculateDaysRemaining(highPriorityDeadline.due_date) 
-                        : '!'}
+                      {calculateDaysRemaining(highPriorityDeadline.due_date)}
                     </span>
                     <span className="text-[0.65rem] uppercase font-bold text-slate-500 dark:text-slate-400 mt-0.5">Days Left</span>
                   </div>
@@ -638,7 +652,7 @@ export const StudyPlan = () => {
               <div className="p-8 text-center text-muted text-sm">No deadlines found. Enjoy your day! 🎉</div>
             ) : (
               filteredDeadlines.map(deadline => (
-                <div key={deadline.id} className={cn("flex items-center justify-between p-4 group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50", deadline.is_completed && "opacity-60 bg-slate-50/50 dark:bg-slate-900/50")}>
+                <div key={deadline.id} className={cn("flex flex-col gap-2 p-4 group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50", deadline.is_completed && "opacity-60 bg-slate-50/50 dark:bg-slate-900/50")}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <button 
                       onClick={() => handleToggleComplete(deadline.id, deadline.is_completed)}
@@ -662,15 +676,15 @@ export const StudyPlan = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-8">
                     {!deadline.is_completed && (
                       <div className={cn(
                         "text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap",
-                        calculateDaysRemaining(deadline.due_date) === "Overdue" ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400" :
-                        calculateDaysRemaining(deadline.due_date) === "Today" ? "bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400" :
+                        getDaysRemainingText(deadline.due_date) === "Overdue" ? "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400" :
+                        getDaysRemainingText(deadline.due_date) === "Today" ? "bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400" :
                         "bg-app text-muted"
                       )}>
-                        {calculateDaysRemaining(deadline.due_date)} {typeof calculateDaysRemaining(deadline.due_date) === 'number' ? 'days' : ''}
+                        {getDaysRemainingText(deadline.due_date)}
                       </div>
                     )}
                     <button 
@@ -702,6 +716,16 @@ export const StudyPlan = () => {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         onAdd={handleAddDeadline} 
+      />
+
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        count={1}
+        onConfirm={confirmDeleteDeadline}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+          setDeleteDeadlineId(null);
+        }}
       />
 
       <BottomNav active="schedule" />

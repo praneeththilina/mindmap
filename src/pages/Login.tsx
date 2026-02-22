@@ -9,12 +9,33 @@ export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      login({ email, name: email.split('@')[0] });
-      navigate('/onboarding/1');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        login(data.user);
+        navigate('/');
+      } else {
+        setError(data.error || 'Invalid email or password');
+      }
+    } catch (err) {
+      setError('Something went wrong');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -90,7 +111,8 @@ export const Login = () => {
             </div>
 
             {/* Action Button */}
-            <button className="w-full mt-2 flex items-center justify-center gap-2 bg-[#308ce8] hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-[#308ce8]/25 hover:shadow-[#308ce8]/40 active:scale-[0.98]" type="submit">
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            <button disabled={isLoading} className="w-full mt-2 flex items-center justify-center gap-2 bg-[#308ce8] hover:bg-blue-600 disabled:opacity-50 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-[#308ce8]/25 hover:shadow-[#308ce8]/40 active:scale-[0.98]" type="submit">
               <span>Log In</span>
               <ArrowRight size={20} />
             </button>

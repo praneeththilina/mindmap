@@ -1,15 +1,86 @@
-import { ArrowLeft, ChevronRight, Zap, CheckCircle2, Moon, Sun, Bolt, Edit, Bell, Save, MinusCircle } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Zap, CheckCircle2, Moon, Sun, Bolt, Edit, Bell, Save, MinusCircle, Key, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
+import { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
+
+interface UserStats {
+  user_id: string;
+  name: string;
+  avatar: string;
+  xp: number;
+  level: number;
+  streak: number;
+}
 
 export const SettingsView = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { settings, updateSetting } = useSettings();
   const { user, logout } = useAuth();
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  
+  // Gemini API Key state
+  const [hasGeminiKey, setHasGeminiKey] = useState(false);
+  const [geminiKeyInput, setGeminiKeyInput] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [keySaveMessage, setKeySaveMessage] = useState('');
+
+  useEffect(() => {
+    apiFetch('/api/user/stats')
+      .then(res => res.json())
+      .then(data => {
+        setStats(data);
+        setEditedName(data?.registeredName || data?.name || '');
+      });
+    
+    apiFetch('/api/user/gemini-key')
+      .then(res => res.json())
+      .then(data => {
+        setHasGeminiKey(data.hasKey);
+      });
+  }, []);
+
+  const handleSaveGeminiKey = async () => {
+    setIsSavingKey(true);
+    setKeySaveMessage('');
+    try {
+      const res = await apiFetch('/api/user/gemini-key', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ geminiApiKey: geminiKeyInput })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHasGeminiKey(data.hasKey);
+        setKeySaveMessage(data.hasKey ? 'API key saved!' : 'API key removed');
+        setGeminiKeyInput('');
+        setTimeout(() => setKeySaveMessage(''), 3000);
+      }
+    } catch (error) {
+      setKeySaveMessage('Failed to save');
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
+  const handleSaveName = async () => {
+    if (!editedName.trim()) return;
+    const res = await apiFetch('/api/user/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editedName.trim(), avatar: stats?.avatar })
+    });
+    const updated = await res.json();
+    setStats(updated);
+    setIsEditingName(false);
+  };
 
   const handleLogout = () => {
     logout();
@@ -32,25 +103,42 @@ export const SettingsView = () => {
 
       <main className="flex-1 flex flex-col gap-6 p-4 pb-10 max-w-md mx-auto w-full">
         {/* Profile Section */}
-        <section className="bg-surface rounded-xl p-4 shadow-sm border border-line flex items-center gap-4 cursor-pointer hover:bg-app transition-colors">
+        <section className="bg-surface rounded-xl p-4 shadow-sm border border-line flex items-center gap-4 hover:bg-app transition-colors">
           <div className="relative shrink-0">
             <div className="h-16 w-16 rounded-full bg-slate-200 overflow-hidden ring-2 ring-line">
-              <img src="https://picsum.photos/seed/alex/100/100" alt="Profile" className="h-full w-full object-cover" />
-            </div>
-            <div className="absolute -bottom-1 -right-1 bg-primary text-white rounded-full p-1 border-2 border-white dark:border-card-dark flex items-center justify-center">
-              <Edit size={12} strokeWidth={3} />
+              <img src={stats?.avatar || `https://picsum.photos/seed/${(stats?.registeredName || stats?.name || 'user').toLowerCase().replace(/\s/g, '')}/100/100`} alt="Profile" className="h-full w-full object-cover" />
             </div>
           </div>
           <div className="flex flex-col flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold truncate">{user?.name || 'Guest User'}</h2>
+              {isEditingName ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    className="flex-1 bg-app border border-line rounded-lg px-2 py-1 text-lg font-bold truncate focus:ring-2 focus:ring-primary/20 outline-none"
+                    autoFocus
+                  />
+                  <button onClick={handleSaveName} className="text-primary p-1">
+                    <Save size={20} />
+                  </button>
+                  <button onClick={() => setIsEditingName(false)} className="text-muted p-1">
+                    <MinusCircle size={20} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold truncate">{stats?.registeredName || stats?.name || 'Guest User'}</h2>
+                  <button onClick={() => setIsEditingName(true)} className="text-muted hover:text-primary transition-colors">
+                    <Edit size={16} />
+                  </button>
+                </>
+              )}
               <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Pro</span>
             </div>
-            <p className="text-muted text-sm truncate">{user?.email || 'Sign in to sync'}</p>
+            <p className="text-muted text-sm truncate">{stats?.email || 'Sign in to sync'}</p>
           </div>
-          <button className="text-muted hover:text-primary transition-colors">
-            <ChevronRight size={24} />
-          </button>
         </section>
 
         {/* Appearance Section */}
@@ -220,6 +308,73 @@ export const SettingsView = () => {
             </div>
           </div>
           <p className="mt-2 ml-1 text-xs text-slate-400">Focus mode hides all UI elements except your map nodes.</p>
+        </section>
+
+        {/* AI Section */}
+        <section>
+          <h3 className="text-muted text-xs font-bold uppercase tracking-wider mb-3 ml-1">AI Features</h3>
+          <div className="bg-surface rounded-xl p-4 shadow-sm border border-line">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white">
+                <Zap size={20} />
+              </div>
+              <div>
+                <p className="font-bold text-base">Gemini API Key</p>
+                <p className="text-xs text-muted">Required for AI features</p>
+              </div>
+              {hasGeminiKey && (
+                <div className="ml-auto flex items-center gap-1 text-emerald-500 text-xs font-medium">
+                  <CheckCircle2 size={14} />
+                  <span>Connected</span>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-xs text-slate-500 mb-3">
+              Enter your own Gemini API key to enable AI features like smart suggestions, node generation, and study planning.
+            </p>
+            
+            <a 
+              href="https://aistudio.google.com/app/apikey" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-xs text-primary hover:underline mb-3 inline-block"
+            >
+              Get a free API key from Google AI Studio →
+            </a>
+            
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={showGeminiKey ? 'text' : 'password'}
+                  value={geminiKeyInput}
+                  onChange={(e) => setGeminiKeyInput(e.target.value)}
+                  placeholder={hasGeminiKey ? '••••••••••••••••' : 'Enter your API key'}
+                  className="w-full bg-app border border-line rounded-lg px-3 py-2 text-sm pr-10 focus:ring-2 focus:ring-primary/20 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <button
+                onClick={handleSaveGeminiKey}
+                disabled={isSavingKey || (!geminiKeyInput && !hasGeminiKey)}
+                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {isSavingKey ? <Loader2 size={16} className="animate-spin" /> : 'Save'}
+              </button>
+            </div>
+            
+            {keySaveMessage && (
+              <p className={cn("text-xs mt-2", keySaveMessage.includes('Failed') ? "text-red-500" : "text-emerald-500")}>
+                {keySaveMessage}
+              </p>
+            )}
+          </div>
         </section>
 
         {/* Footer Actions */}

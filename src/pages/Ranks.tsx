@@ -3,6 +3,7 @@ import { ArrowLeft, Settings, Flame, Loader2, ArrowUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BottomNav } from '../components/BottomNav';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 import type { UserStats } from '../types';
 
 interface LeaderboardEntry extends UserStats {
@@ -10,19 +11,29 @@ interface LeaderboardEntry extends UserStats {
   avatar: string;
 }
 
+const getCurrentUserId = (): string => {
+  const user = localStorage.getItem('user');
+  if (user) {
+    const userData = JSON.parse(user);
+    return userData.id;
+  }
+  return '';
+};
+
 export const Ranks = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'global' | 'friends'>('global');
+  const currentUserId = getCurrentUserId();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [statsRes, leaderboardRes] = await Promise.all([
-          fetch('/api/user/stats'),
-          fetch('/api/leaderboard')
+          apiFetch('/api/user/stats'),
+          apiFetch('/api/leaderboard')
         ]);
         const statsData = await statsRes.json();
         const leaderboardData = await leaderboardRes.json();
@@ -45,7 +56,7 @@ export const Ranks = () => {
     );
   }
 
-  const myRank = leaderboard.findIndex(u => u.user_id === 'user_1') + 1;
+  const myRank = leaderboard.findIndex(u => u.user_id === currentUserId) + 1;
   const nextUser = myRank > 1 ? leaderboard[myRank - 2] : null;
   const xpToNext = nextUser ? nextUser.xp - (stats?.xp || 0) : 0;
 
@@ -88,7 +99,7 @@ export const Ranks = () => {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="bg-streak-orange/10 text-streak-orange text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Daily Streak</span>
                 </div>
-                <h2 className="text-2xl font-bold leading-tight">You're on fire, {stats?.name || 'Alex'}! <br/><span className="text-streak-orange">{stats?.streak || 0} Days Strong 🔥</span></h2>
+                <h2 className="text-2xl font-bold leading-tight">You're on fire, {stats?.registeredName || stats?.name || 'there'}! <br/><span className="text-streak-orange">{stats?.streak || 0} Days Strong 🔥</span></h2>
               </div>
               <div className="w-12 h-12 bg-streak-orange/10 rounded-full flex items-center justify-center">
                 <Flame size={30} className="text-streak-orange" fill="currentColor" />
@@ -137,7 +148,7 @@ export const Ranks = () => {
           <div className="space-y-3 pb-6">
             {leaderboard.map((user, index) => {
               const rank = index + 1;
-              const isMe = user.user_id === 'user_1';
+              const isMe = user.user_id === currentUserId;
               const emoji = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank.toString();
               
               const roles: Record<string, string> = {
@@ -213,13 +224,13 @@ export const Ranks = () => {
           </div>
           <div className="ml-3 mr-3 relative">
             <div className="w-10 h-10 rounded-full bg-app overflow-hidden ring-2 ring-primary ring-offset-2 ring-offset-surface">
-              <img src={stats?.avatar || "https://picsum.photos/seed/alex/100/100"} alt="Me" className="w-full h-full object-cover" />
+              <img src={stats?.avatar || `https://picsum.photos/seed/${(stats?.registeredName || stats?.name || 'user').toLowerCase().replace(/\s/g, '')}/100/100`} alt="Me" className="w-full h-full object-cover" />
             </div>
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-surface"></div>
           </div>
           <div className="flex-1 min-w-0 flex flex-col justify-center">
             <div className="flex justify-between items-end">
-              <h3 className="font-bold text-main truncate text-sm">You (Alex)</h3>
+              <h3 className="font-bold text-main truncate text-sm">You ({stats?.registeredName || stats?.name || 'User'})</h3>
               <span className="text-xs font-semibold text-muted">{stats?.xp.toLocaleString()} XP</span>
             </div>
             {xpToNext > 0 && (

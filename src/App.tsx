@@ -5,6 +5,7 @@
 
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Dashboard } from './pages/Dashboard';
 import { Library } from './pages/Library';
 import { MindMapEditor } from './pages/MindMapEditor';
@@ -26,12 +27,6 @@ export default function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/map/:id" element={<MindMapEditor />} />
-          <Route path="/ranks" element={<Ranks />} />
-          <Route path="/settings" element={<SettingsView />} />
-          <Route path="/schedule" element={<StudyPlan />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -41,6 +36,12 @@ export default function App() {
           <Route path="/onboarding/1" element={<OnboardingStep1 />} />
           <Route path="/onboarding/2" element={<OnboardingStep2 />} />
           <Route path="/onboarding/3" element={<OnboardingStep3 />} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
+          <Route path="/map/:id" element={<ProtectedRoute><MindMapEditor /></ProtectedRoute>} />
+          <Route path="/ranks" element={<ProtectedRoute><Ranks /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsView /></ProtectedRoute>} />
+          <Route path="/schedule" element={<ProtectedRoute><StudyPlan /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>

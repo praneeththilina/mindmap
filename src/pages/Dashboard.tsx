@@ -1,26 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Flame, Calendar, Network, TrendingUp, Plus, Users, Share2, Lock, CheckCircle, PieChart, GraduationCap } from 'lucide-react';
+import { Flame, Calendar, Network, TrendingUp, Plus, Users, Share2, Lock, CheckCircle, PieChart, GraduationCap, Edit, Trash2 } from 'lucide-react';
 import { BottomNav } from '../components/BottomNav';
 import type { UserStats, Map } from '../types';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 
 import { DashboardHeader } from '../components/DashboardHeader';
 import { CreateMapModal } from '../components/CreateMapModal';
+import { EditMapModal } from '../components/EditMapModal';
 
 export const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [recentMaps, setRecentMaps] = useState<Map[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingMap, setEditingMap] = useState<Map | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchData = async () => {
     setIsRefreshing(true);
     try {
       const [statsRes, mapsRes] = await Promise.all([
-        fetch('/api/user/stats'),
-        fetch('/api/maps')
+        apiFetch('/api/user/stats'),
+        apiFetch('/api/maps')
       ]);
       const statsData = await statsRes.json();
       const mapsData = await mapsRes.json();
@@ -41,7 +44,15 @@ export const Dashboard = () => {
     navigate(`/map/${mapId}`);
   };
 
-  const overallMastery = recentMaps.length > 0 
+  const handleMapDelete = (mapId: string) => {
+    setRecentMaps(prev => prev.filter(m => m.id !== mapId));
+  };
+
+  const handleMapUpdate = (updatedMap: { id: string; title: string; description: string }) => {
+    setRecentMaps(prev => prev.map(m => m.id === updatedMap.id ? { ...m, ...updatedMap } : m));
+  };
+
+  const overallMastery = recentMaps.length > 0
     ? Math.round(recentMaps.reduce((acc, map) => acc + (map.mastery_percentage || 0), 0) / recentMaps.length)
     : 0;
 
@@ -94,7 +105,7 @@ export const Dashboard = () => {
               <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
                 <TrendingUp size={20} className="text-emerald-500" />
               </div>
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">+12%</span>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">--</span>
             </div>
             <div>
               <p className="text-2xl font-bold text-main tabular-nums">{stats?.xp.toLocaleString() || 0}</p>
@@ -184,19 +195,35 @@ export const Dashboard = () => {
               const Icon = style.icon;
               
               return (
-                <Link key={map.id} to={`/map/${map.id}`} className="snap-center shrink-0 w-44 bg-surface rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-line overflow-hidden flex flex-col group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                <div key={map.id} className="snap-center shrink-0 w-44 bg-surface rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-line overflow-hidden flex flex-col group cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
                   <div className={cn("h-28 relative overflow-hidden", style.bg)}>
                     <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity z-10", i % 3 === 0 ? "bg-primary/10" : i % 3 === 1 ? "bg-amber-500/10" : "bg-indigo-500/10")}></div>
                     <img className="w-full h-full object-cover mix-blend-overlay opacity-80" src={`https://picsum.photos/seed/${map.id}/200/150`} alt={map.title} />
-                    <div className="absolute top-2 right-2 z-20">
+                    <div className="absolute top-2 right-2 z-20 flex gap-1">
                       <span className={cn("backdrop-blur-sm p-1 rounded-full shadow-sm block", style.badge)}>
                         <Icon size={14} className={style.iconColor} />
                       </span>
                     </div>
+                    <div className="absolute top-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                      <button 
+                        onClick={(e) => { e.preventDefault(); setEditingMap(map); }}
+                        className="p-1.5 bg-white/90 dark:bg-slate-800/90 rounded-full shadow-sm hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit size={14} className="text-slate-600 dark:text-slate-300" />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.preventDefault(); setEditingMap(map); }}
+                        className="p-1.5 bg-white/90 dark:bg-slate-800/90 rounded-full shadow-sm hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} className="text-red-500" />
+                      </button>
+                    </div>
                   </div>
                   <div className="p-4 flex flex-col h-full justify-between">
                     <div className="mb-3">
-                      <h4 className="font-bold text-main text-sm leading-snug mb-1 truncate">{map.title}</h4>
+                      <Link to={`/map/${map.id}`} className="font-bold text-main text-sm leading-snug mb-1 truncate hover:text-primary transition-colors">{map.title}</Link>
                       <div className="flex items-center gap-1">
                         {map.mastery_percentage && map.mastery_percentage > 50 ? (
                           <CheckCircle size={14} className="text-green-500" />
@@ -213,7 +240,7 @@ export const Dashboard = () => {
                       <span>{new Date(map.updated_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
             {recentMaps.length === 0 && (
@@ -233,9 +260,8 @@ export const Dashboard = () => {
                 <p className="text-xs text-muted mt-1">Goal: 2 hours/day</p>
               </div>
               <div className="flex flex-col items-end">
-                <div className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm font-bold bg-green-50 dark:bg-green-900/20 px-2.5 py-1 rounded-lg">
-                  <TrendingUp size={16} />
-                  <span>+12%</span>
+                <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-sm font-bold bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                  <span>--</span>
                 </div>
                 <span className="text-[10px] text-muted mt-1">vs last week</span>
               </div>
@@ -243,7 +269,7 @@ export const Dashboard = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-end h-28 px-1">
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
-                  const heights = [30, 45, 65, 85, 20, 0, 0];
+                  const heights = [30, 45, 65, 85, 20, 0, 0]; // Placeholder data - requires API for real activity
                   const isToday = i === 3; // Thursday
                   const height = heights[i];
                   
@@ -291,6 +317,14 @@ export const Dashboard = () => {
         isOpen={isCreateModalOpen} 
         onClose={() => setIsCreateModalOpen(false)} 
         onCreated={handleMapCreated} 
+      />
+
+      <EditMapModal
+        isOpen={!!editingMap}
+        map={editingMap}
+        onClose={() => setEditingMap(null)}
+        onDelete={handleMapDelete}
+        onSave={handleMapUpdate}
       />
 
       <BottomNav active="home" />

@@ -34,7 +34,7 @@ export const DashboardHeader = ({ stats, onRefresh, isRefreshing }: DashboardHea
             <RefreshCw size={14} />
           </button>
         </div>
-        <h1 className="text-2xl font-bold text-main tracking-tight">{stats?.name || 'Alex'}</h1>
+        <h1 className="text-2xl font-bold text-main tracking-tight">{stats?.registeredName || stats?.name || 'Guest'}</h1>
       </div>
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5 bg-orange-50 dark:bg-orange-900/20 px-3 py-1.5 rounded-full border border-orange-100 dark:border-orange-800/30">
@@ -43,7 +43,7 @@ export const DashboardHeader = ({ stats, onRefresh, isRefreshing }: DashboardHea
         </div>
         <div className="relative">
           <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-surface shadow-sm">
-            <img src="https://picsum.photos/seed/alex/100/100" alt="Profile" className="h-full w-full object-cover" />
+            <img src={stats?.avatar || `https://picsum.photos/seed/${(stats?.registeredName || stats?.name || 'user').toLowerCase().replace(/\s/g, '')}/100/100`} alt="Profile" className="h-full w-full object-cover" />
           </div>
           <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-surface"></div>
         </div>

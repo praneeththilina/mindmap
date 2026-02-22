@@ -1,19 +1,32 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Sparkles, Loader2, Folder as FolderIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
+import type { Folder } from '../types';
 
 interface CreateMapModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (mapId: string) => void;
+  folders?: Folder[];
 }
 
-export const CreateMapModal: React.FC<CreateMapModalProps> = ({ isOpen, onClose, onCreated }) => {
+export const CreateMapModal: React.FC<CreateMapModalProps> = ({ isOpen, onClose, onCreated, folders = [] }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [folderId, setFolderId] = useState('');
   const [branches, setBranches] = useState<string[]>(['']);
   const [isCreating, setIsCreating] = useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setTitle('');
+      setDescription('');
+      setFolderId('');
+      setBranches(['']);
+    }
+  }, [isOpen]);
 
   const handleAddBranch = () => setBranches([...branches, '']);
   const handleRemoveBranch = (index: number) => setBranches(branches.filter((_, i) => i !== index));
@@ -30,10 +43,10 @@ export const CreateMapModal: React.FC<CreateMapModalProps> = ({ isOpen, onClose,
     setIsCreating(true);
     try {
       // 1. Create the Map
-      const mapRes = await fetch('/api/maps', {
+      const mapRes = await apiFetch('/api/maps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description })
+        body: JSON.stringify({ title, description, folder_id: folderId || null })
       });
       
       if (!mapRes.ok) throw new Error('Failed to create map');
@@ -41,7 +54,7 @@ export const CreateMapModal: React.FC<CreateMapModalProps> = ({ isOpen, onClose,
       const mapId = mapData.id;
 
       // 2. Create the Root Node
-      const rootNodeRes = await fetch('/api/nodes', {
+      const rootNodeRes = await apiFetch('/api/nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,7 +81,7 @@ export const CreateMapModal: React.FC<CreateMapModalProps> = ({ isOpen, onClose,
         const x = Math.cos(angle) * radius;
         const y = Math.sin(angle) * radius;
 
-        return fetch('/api/nodes', {
+        return apiFetch('/api/nodes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -139,6 +152,25 @@ export const CreateMapModal: React.FC<CreateMapModalProps> = ({ isOpen, onClose,
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all h-24 resize-none"
                 />
               </div>
+
+              {folders.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Folder (Optional)</label>
+                  <div className="relative">
+                    <FolderIcon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <select
+                      value={folderId}
+                      onChange={(e) => setFolderId(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none"
+                    >
+                      <option value="">No folder</option>
+                      {folders.map(folder => (
+                        <option key={folder.id} value={folder.id}>{folder.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between ml-1">

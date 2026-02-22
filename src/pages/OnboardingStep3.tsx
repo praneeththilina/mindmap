@@ -2,10 +2,28 @@ import { ArrowRight, CheckCircle, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../lib/api';
 
 export const OnboardingStep3 = () => {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
+  const { completeOnboarding } = useAuth();
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  const handleComplete = async () => {
+    setIsCompleting(true);
+    try {
+      await apiFetch('/api/user/onboarding-complete', { method: 'POST' });
+      completeOnboarding();
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to complete onboarding:', error);
+      navigate('/');
+    } finally {
+      setIsCompleting(false);
+    }
+  };
 
   return (
     <div className="bg-[#f6f7f8] dark:bg-[#111921] text-slate-900 dark:text-slate-100 min-h-screen flex flex-col items-center justify-between overflow-hidden relative selection:bg-[#308ce8]/30 font-display">
@@ -136,11 +154,12 @@ export const OnboardingStep3 = () => {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#f6f7f8] via-[#f6f7f8]/95 to-transparent dark:from-[#111921] dark:via-[#111921]/95 z-20">
         <div className="max-w-md mx-auto w-full">
           <button 
-            onClick={() => navigate('/')}
-            className="w-full flex items-center justify-center gap-2 rounded-lg h-14 bg-[#308ce8] hover:bg-blue-600 active:scale-[0.98] transition-all text-white text-lg font-bold tracking-wide shadow-lg shadow-[#308ce8]/30"
+            onClick={handleComplete}
+            disabled={isCompleting}
+            className="w-full flex items-center justify-center gap-2 rounded-lg h-14 bg-[#308ce8] hover:bg-blue-600 active:scale-[0.98] transition-all text-white text-lg font-bold tracking-wide shadow-lg shadow-[#308ce8]/30 disabled:opacity-50"
           >
-            <span>Get Started</span>
-            <ArrowRight size={20} />
+            <span>{isCompleting ? 'Setting up...' : 'Get Started'}</span>
+            {!isCompleting && <ArrowRight size={20} />}
           </button>
         </div>
       </div>

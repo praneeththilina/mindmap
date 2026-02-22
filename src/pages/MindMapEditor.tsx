@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { useParams, useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { 
@@ -34,8 +35,8 @@ import {
   UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { cn } from '../lib/utils';
+import { apiFetch } from '../lib/api';
 import type { Map, Node } from '../types';
 
 import html2canvas from 'html2canvas';
@@ -52,6 +53,8 @@ export const MindMapEditor = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [isToolbarOpen, setIsToolbarOpen] = useState(true);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteNodeCount, setDeleteNodeCount] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +69,8 @@ export const MindMapEditor = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'new' | 'review' | 'mastered'>('all');
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [collapsedNodeIds, setCollapsedNodeIds] = useState<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -228,7 +233,8 @@ export const MindMapEditor = () => {
 
     } catch (error) {
       console.error("Export failed:", error);
-      alert("Failed to export map. Please try again.");
+      setToast({ message: "Failed to export map. Please try again.", type: 'error' });
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -266,7 +272,7 @@ export const MindMapEditor = () => {
     
     // Persist to backend
     try {
-      await fetch(`/api/nodes/${selectedNode.id}`, {
+      await apiFetch(`/api/nodes/${selectedNode.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mastery_level: level })
@@ -281,20 +287,14 @@ export const MindMapEditor = () => {
 
     setIsSummarizing(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Summarize the following notes into a concise paragraph (max 3 sentences):
-        
-        "${selectedNode.notes}"`,
-        config: {
-          responseMimeType: "text/plain",
-        }
+      const res = await apiFetch('/api/ai/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: selectedNode.notes })
       });
-
-      const summary = response.text;
-      if (summary) {
-        setSelectedNode(prev => prev ? { ...prev, notes: summary } : null);
+      const data = await res.json();
+      if (data.summary) {
+        setSelectedNode(prev => prev ? { ...prev, notes: data.summary } : null);
       }
     } catch (error) {
       console.error("Summarization failed:", error);
@@ -308,25 +308,17 @@ export const MindMapEditor = () => {
     
     setIsGeneratingAI(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Based on the current mind map node titled "${selectedNode.title}" with notes "${selectedNode.notes}", suggest a relevant child node. 
-        Return a JSON object with "title" and "notes" fields. The notes should be a brief explanation (max 2 sentences).`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: GenAIType.OBJECT,
-            properties: {
-              title: { type: GenAIType.STRING },
-              notes: { type: GenAIType.STRING }
-            },
-            required: ["title", "notes"]
-          }
-        }
+      const res = await apiFetch('/api/ai/generate-node', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nodeTitle: selectedNode.title,
+          nodeNotes: selectedNode.notes,
+          parentId: selectedNode.id,
+          mapId: map.id
+        })
       });
-
-      const suggestion = JSON.parse(response.text);
+      const suggestion = await res.json();
       
       const newNodeData = {
         map_id: map.id,
@@ -339,14 +331,14 @@ export const MindMapEditor = () => {
         shape: selectedNode.shape
       };
 
-      const res = await fetch('/api/nodes', {
+      const nodeRes = await apiFetch('/api/nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newNodeData)
       });
 
-      if (res.ok) {
-        const newNode = await res.json();
+      if (nodeRes.ok) {
+        const newNode = await nodeRes.json();
         setNodes(prev => [...prev, newNode]);
         setSelectedNode(newNode);
         setPan({ x: -newNode.x, y: -newNode.y });
@@ -364,7 +356,6 @@ export const MindMapEditor = () => {
     
     setIsGeneratingAI(true);
     try {
-      // Gather context from ancestors
       const ancestors: Node[] = [];
       let currentParentId = selectedNode.parent_id;
       while (currentParentId) {
@@ -378,30 +369,27 @@ export const MindMapEditor = () => {
       }
 
       const context = ancestors.map(a => `Topic: ${a.title} (${a.notes})`).join(' -> ');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Context: ${context} -> Current Node: ${selectedNode.title} (${selectedNode.notes})
-        Suggest 3-5 relevant sub-topics (child nodes) for the current node. 
-        Return a JSON array of objects, each with "title" and "notes" fields.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: GenAIType.ARRAY,
-            items: {
-              type: GenAIType.OBJECT,
-              properties: {
-                title: { type: GenAIType.STRING },
-                notes: { type: GenAIType.STRING }
-              },
-              required: ["title", "notes"]
-            }
-          }
-        }
+      const res = await apiFetch('/api/ai/generate-subtopics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context,
+          nodeTitle: selectedNode.title,
+          nodeNotes: selectedNode.notes
+        })
       });
-
-      const suggestions = JSON.parse(response.text);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to generate subtopics');
+      }
+      
+      const suggestions = await res.json();
+      
+      if (!Array.isArray(suggestions)) {
+        throw new Error('Invalid response from AI');
+      }
       
       const newNodes = await Promise.all(suggestions.map(async (suggestion: any, index: number) => {
         const newNodeData = {
@@ -415,12 +403,12 @@ export const MindMapEditor = () => {
           shape: selectedNode.shape
         };
 
-        const res = await fetch('/api/nodes', {
+        const nodeRes = await apiFetch('/api/nodes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newNodeData)
         });
-        return res.ok ? res.json() : null;
+        return nodeRes.ok ? nodeRes.json() : null;
       }));
 
       const successfulNodes = newNodes.filter(n => n !== null);
@@ -447,7 +435,7 @@ export const MindMapEditor = () => {
       shape: selectedNode.shape
     };
 
-    const res = await fetch('/api/nodes', {
+    const res = await apiFetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newNodeData)
@@ -476,7 +464,7 @@ export const MindMapEditor = () => {
       shape: selectedNode.shape
     };
 
-    const res = await fetch('/api/nodes', {
+    const res = await apiFetch('/api/nodes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newNodeData)
@@ -491,7 +479,36 @@ export const MindMapEditor = () => {
     }
   };
 
-  const filteredNodes = searchQuery.trim() === '' 
+  const addRootNode = async () => {
+    if (!map) return;
+    
+    const newNodeData = {
+      map_id: map.id,
+      parent_id: null,
+      title: "Main Topic",
+      notes: "",
+      color: "#308ce8",
+      x: 0,
+      y: 0,
+      shape: "rounded"
+    };
+
+    const res = await apiFetch('/api/nodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newNodeData)
+    });
+
+    if (res.ok) {
+      const newNode = await res.json();
+      setNodes(prev => [...prev, newNode]);
+      setSelectedNode(newNode);
+      setPan({ x: 0, y: 0 });
+      setIsToolbarOpen(false);
+    }
+  };
+
+  const filteredNodes = searchQuery.trim() === ''
     ? [] 
     : nodes.filter(node => 
         node.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -499,9 +516,17 @@ export const MindMapEditor = () => {
       );
 
   useEffect(() => {
-    fetch(`/api/maps/${id}`).then(res => res.json()).then(data => {
+    apiFetch(`/api/maps/${id}`).then(res => res.json()).then(data => {
       setMap(data);
       setNodes(data.nodes);
+      // Initialize collapsed state from server data
+      const collapsed = new Set<string>();
+      data.nodes.forEach((node: Node) => {
+        if (node.is_collapsed) {
+          collapsed.add(node.id);
+        }
+      });
+      setCollapsedNodeIds(collapsed);
     });
   }, [id]);
 
@@ -519,6 +544,50 @@ export const MindMapEditor = () => {
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
+  const getDescendants = (nodeId: string): string[] => {
+    const descendants: string[] = [];
+    const findChildren = (parentId: string) => {
+      const children = nodes.filter(n => n.parent_id === parentId);
+      children.forEach(child => {
+        descendants.push(child.id);
+        findChildren(child.id);
+      });
+    };
+    findChildren(nodeId);
+    return descendants;
+  };
+
+  const getChildCount = (nodeId: string): number => {
+    return getDescendants(nodeId).length;
+  };
+
+  const toggleCollapse = async (node: Node) => {
+    const isCollapsed = collapsedNodeIds.has(node.id);
+    
+    if (isCollapsed) {
+      // Expand
+      setCollapsedNodeIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(node.id);
+        return newSet;
+      });
+    } else {
+      // Collapse
+      setCollapsedNodeIds(prev => new Set(prev).add(node.id));
+    }
+
+    // Persist to backend
+    try {
+      await apiFetch(`/api/nodes/${node.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_collapsed: !isCollapsed })
+      });
+    } catch (error) {
+      console.error('Failed to update collapse state:', error);
+    }
+  };
+
   const handleNodeClick = (e: React.MouseEvent, node: Node) => {
     e.stopPropagation();
     if (e.shiftKey) {
@@ -528,11 +597,21 @@ export const MindMapEditor = () => {
           : [...prev, node.id]
       );
       setSelectedNode(null);
+    } else if (getChildCount(node.id) > 0) {
+      // Single click on node with children toggles collapse
+      toggleCollapse(node);
     } else {
+      // No children - just select
       setSelectedNode(node);
       setSelectedNodeIds([node.id]);
-      setIsPanelOpen(true);
     }
+  };
+
+  const handleNodeDoubleClick = (e: React.MouseEvent, node: Node) => {
+    e.stopPropagation();
+    setSelectedNode(node);
+    setSelectedNodeIds([node.id]);
+    setIsPanelOpen(true);
   };
 
   const handleGroupNodes = async () => {
@@ -547,7 +626,7 @@ export const MindMapEditor = () => {
 
     try {
       await Promise.all(selectedNodeIds.map(nodeId => 
-        fetch(`/api/nodes/${nodeId}`, {
+        apiFetch(`/api/nodes/${nodeId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ group_id: groupId })
@@ -575,7 +654,7 @@ export const MindMapEditor = () => {
     try {
       const allNodesInGroups = nodes.filter(n => n.group_id && groupIds.includes(n.group_id));
       await Promise.all(allNodesInGroups.map(node => 
-        fetch(`/api/nodes/${node.id}`, {
+        apiFetch(`/api/nodes/${node.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ group_id: null })
@@ -591,7 +670,7 @@ export const MindMapEditor = () => {
     try {
       // Save current selected node if any
       if (selectedNode) {
-        await fetch(`/api/nodes/${selectedNode.id}`, {
+        await apiFetch(`/api/nodes/${selectedNode.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(selectedNode)
@@ -607,36 +686,45 @@ export const MindMapEditor = () => {
     }
   };
 
-  const handleDeleteNode = async () => {
+  const handleDeleteNode = () => {
     const nodesToDelete = selectedNodeIds.length > 0 
       ? selectedNodeIds 
       : selectedNode ? [selectedNode.id] : [];
     
     if (nodesToDelete.length === 0) return;
     
-    if (window.confirm(`Are you sure you want to delete ${nodesToDelete.length} node(s) and their connections?`)) {
-      try {
-        // Optimistic update
-        const getDescendantIds = (parentIds: string[], allNodes: Node[]): string[] => {
-          const children = allNodes.filter(n => n.parent_id && parentIds.includes(n.parent_id));
-          if (children.length === 0) return [];
-          const childIds = children.map(c => c.id);
-          return [...childIds, ...getDescendantIds(childIds, allNodes)];
-        };
-        
-        const allIdsToDelete = [...nodesToDelete, ...getDescendantIds(nodesToDelete, nodes)];
-        setNodes(prev => prev.filter(n => !allIdsToDelete.includes(n.id)));
-        setSelectedNode(null);
-        setSelectedNodeIds([]);
+    setDeleteNodeCount(nodesToDelete.length);
+    setIsDeleteModalOpen(true);
+  };
 
-        // Send delete requests
-        await Promise.all(nodesToDelete.map(id => 
-          fetch(`/api/nodes/${id}`, { method: 'DELETE' })
-        ));
-      } catch (error) {
-        console.error("Failed to delete nodes:", error);
-        // In a real app, we might want to revert the state here or refetch
-      }
+  const confirmDeleteNode = async () => {
+    const nodesToDelete = selectedNodeIds.length > 0 
+      ? selectedNodeIds 
+      : selectedNode ? [selectedNode.id] : [];
+    
+    setIsDeleteModalOpen(false);
+    
+    try {
+      // Optimistic update
+      const getDescendantIds = (parentIds: string[], allNodes: Node[]): string[] => {
+        const children = allNodes.filter(n => n.parent_id && parentIds.includes(n.parent_id));
+        if (children.length === 0) return [];
+        const childIds = children.map(c => c.id);
+        return [...childIds, ...getDescendantIds(childIds, allNodes)];
+      };
+      
+      const allIdsToDelete = [...nodesToDelete, ...getDescendantIds(nodesToDelete, nodes)];
+      setNodes(prev => prev.filter(n => !allIdsToDelete.includes(n.id)));
+      setSelectedNode(null);
+      setSelectedNodeIds([]);
+
+      // Send delete requests
+      await Promise.all(nodesToDelete.map(id => 
+        apiFetch(`/api/nodes/${id}`, { method: 'DELETE' })
+      ));
+    } catch (error) {
+      console.error("Failed to delete nodes:", error);
+      // In a real app, we might want to revert the state here or reapiFetch
     }
   };
 
@@ -659,7 +747,7 @@ export const MindMapEditor = () => {
     };
 
     try {
-      const res = await fetch('/api/nodes', {
+      const res = await apiFetch('/api/nodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newNodeData)
@@ -776,7 +864,7 @@ export const MindMapEditor = () => {
       setNodes(prev => prev.map(n => n.id === targetNode.id ? updatedNode : n));
 
       try {
-        await fetch(`/api/nodes/${targetNode.id}`, {
+        await apiFetch(`/api/nodes/${targetNode.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ parent_id: connectingNodeId })
@@ -973,6 +1061,9 @@ export const MindMapEditor = () => {
                 const parent = nodes.find(n => n.id === node.parent_id);
                 if (!parent) return null;
                 
+                // Skip connections to/from collapsed nodes
+                if (collapsedNodeIds.has(node.id) || collapsedNodeIds.has(parent.id)) return null;
+                
                 const startX = parent.x + centerX;
                 const startY = parent.y + centerY;
                 const endX = node.x + centerX;
@@ -1012,8 +1103,35 @@ export const MindMapEditor = () => {
               )}
             </svg>
 
+            {/* Empty State - No Nodes */}
+            {nodes.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Network size={40} className="text-slate-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-600 dark:text-slate-300 mb-2">No nodes yet</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mb-4">Create your first node to get started</p>
+                  <button
+                    onClick={addRootNode}
+                    className="px-6 py-3 bg-primary hover:bg-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-primary/25 transition-all"
+                  >
+                    Create Root Node
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Nodes */}
-            {nodes.map(node => (
+            {nodes.filter(node => {
+              // Skip if node's parent is collapsed
+              if (node.parent_id && collapsedNodeIds.has(node.parent_id)) return false;
+              return true;
+            }).map(node => {
+              const childCount = getChildCount(node.id);
+              const isCollapsed = collapsedNodeIds.has(node.id);
+              
+              return (
               <motion.div
                 key={node.id}
                 data-node-id={node.id}
@@ -1051,7 +1169,7 @@ export const MindMapEditor = () => {
                       : [node];
 
                   nodesToMove.forEach(n => {
-                    fetch(`/api/nodes/${n.id}`, {
+                    apiFetch(`/api/nodes/${n.id}`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ x: n.x, y: n.y })
@@ -1061,6 +1179,7 @@ export const MindMapEditor = () => {
                 initial={false}
                 animate={{ x: node.x + centerX, y: node.y + centerY }}
                 onClick={(e) => handleNodeClick(e, node)}
+                onDoubleClick={(e) => handleNodeDoubleClick(e, node)}
                 onMouseUp={(e) => handleNodeMouseUp(e, node)}
                 className={cn(
                   "absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-shadow z-10",
@@ -1132,6 +1251,35 @@ export const MindMapEditor = () => {
                       <span className="text-[8px] text-green-600 uppercase font-bold tracking-wider">Mastered</span>
                     </div>
                   )}
+                  
+                  {/* Collapse indicator */}
+                  {childCount > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCollapse(node);
+                      }}
+                      className={cn(
+                        "absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center justify-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold transition-all",
+                        isCollapsed 
+                          ? "bg-primary text-white shadow-lg hover:scale-105" 
+                          : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600"
+                      )}
+                    >
+                      {isCollapsed ? (
+                        <>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                          {childCount}
+                        </>
+                      ) : (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M5 12h14" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
                 </div>
                 {/* Connector dots for dragging simulation */}
                 {selectedNode?.id === node.id && (
@@ -1144,7 +1292,8 @@ export const MindMapEditor = () => {
                   </div>
                 )}
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
         {/* Mini-Map (Bottom Left) */}
@@ -1167,6 +1316,16 @@ export const MindMapEditor = () => {
                 exit={{ scale: 0.9, opacity: 0 }}
                 className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1.5 rounded-full shadow-xl border border-slate-100 dark:border-slate-700"
               >
+                {nodes.length === 0 ? (
+                  <button 
+                    onClick={addRootNode}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-blue-600 text-white font-semibold rounded-full shadow-lg shadow-primary/30 transition-all"
+                  >
+                    <Plus size={20} />
+                    <span>Add Root</span>
+                  </button>
+                ) : (
+                  <>
                 <button 
                   onClick={addSiblingNode}
                   disabled={!selectedNode || !selectedNode.parent_id}
@@ -1214,6 +1373,8 @@ export const MindMapEditor = () => {
                 >
                   <X size={16} />
                 </button>
+                  </>
+                )}
               </motion.div>
             ) : (
               <motion.button
@@ -1546,7 +1707,7 @@ export const MindMapEditor = () => {
                   <button 
                     onClick={() => {
                       setNodes(prev => prev.map(n => n.id === selectedNode.id ? selectedNode : n));
-                      fetch(`/api/nodes/${selectedNode.id}`, {
+                      apiFetch(`/api/nodes/${selectedNode.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(selectedNode)
@@ -1643,6 +1804,19 @@ export const MindMapEditor = () => {
         nodes={nodes}
         onExport={handleExportMap}
       />
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        count={deleteNodeCount}
+        onConfirm={confirmDeleteNode}
+        onCancel={() => setIsDeleteModalOpen(false)}
+      />
+      {toast && (
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-3 rounded-xl shadow-lg z-50 ${
+          toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 };

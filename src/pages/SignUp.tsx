@@ -7,6 +7,8 @@ export const SignUp = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -14,12 +16,34 @@ export const SignUp = () => {
     agreeToTerms: false
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would validate and send to backend
-    if (formData.email && formData.password && formData.fullName) {
-      // Don't login automatically, redirect to login page
-      navigate('/login');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        login(data.user);
+        navigate('/');
+      } else {
+        setError(data.error || 'Registration failed');
+      }
+    } catch (err) {
+      setError('Something went wrong');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -112,9 +136,13 @@ export const SignUp = () => {
             </span>
           </label>
 
+          {error && (
+            <p className="text-red-500 text-sm text-center">{error}</p>
+          )}
+
           {/* Primary Action Button */}
-          <button className="w-full bg-[#13ec6d] hover:bg-[#13ec6d]/90 text-[#102218] font-bold h-14 rounded-xl mt-2 transition-transform active:scale-[0.98] shadow-lg shadow-[#13ec6d]/20 flex items-center justify-center gap-2">
-            Sign Up
+          <button disabled={isLoading} className="w-full bg-[#13ec6d] hover:bg-[#13ec6d]/90 disabled:opacity-50 text-[#102218] font-bold h-14 rounded-xl mt-2 transition-transform active:scale-[0.98] shadow-lg shadow-[#13ec6d]/20 flex items-center justify-center gap-2">
+            {isLoading ? 'Creating Account...' : 'Sign Up'}
           </button>
 
           {/* Divider */}

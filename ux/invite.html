@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Collaboration Panel</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for webkit to keep it clean */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #CBD5E1;
+            border-radius: 20px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark overflow-hidden h-screen w-full relative">
+<!-- Background: Mind Map Editor Simulation -->
+<div class="absolute inset-0 z-0 flex flex-col h-full w-full pointer-events-none select-none opacity-40 blur-[2px]">
+<!-- Top Bar Background -->
+<div class="flex items-center bg-white p-4 pb-2 justify-between border-b border-gray-200">
+<div class="text-slate-900 flex size-12 shrink-0 items-center justify-center">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<h2 class="text-slate-900 text-lg font-bold flex-1 text-center">Project X</h2>
+<div class="flex w-12 items-center justify-end">
+<span class="material-symbols-outlined text-slate-900">more_horiz</span>
+</div>
+</div>
+<!-- Mind Map Area -->
+<div class="flex-1 relative bg-[#F8FAFC] overflow-hidden" data-alt="Abstract mind map background with nodes and lines" style="background-image: radial-gradient(#E2E8F0 1px, transparent 1px); background-size: 20px 20px;">
+<!-- Central Node -->
+<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 bg-white border-2 border-primary rounded-xl shadow-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">psychology</span>
+<span class="font-bold text-slate-900">Brainstorm</span>
+</div>
+<!-- Child Node 1 -->
+<div class="absolute top-1/3 left-1/4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+<span class="text-sm font-medium text-slate-700">Research</span>
+</div>
+<!-- Connecting Line 1 (Simulated with absolute div) -->
+<div class="absolute top-[38%] left-[35%] w-[15%] h-[2px] bg-gray-300 transform -rotate-12"></div>
+<!-- Child Node 2 -->
+<div class="absolute bottom-1/3 right-1/4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+<span class="text-sm font-medium text-slate-700">Design</span>
+</div>
+<!-- Connecting Line 2 -->
+<div class="absolute bottom-[38%] right-[35%] w-[15%] h-[2px] bg-gray-300 transform rotate-12"></div>
+<!-- Fake Cursor: Sarah -->
+<div class="absolute top-[30%] left-[28%] z-10">
+<span class="material-symbols-outlined text-pink-500 drop-shadow-md text-3xl" style="transform: rotate(-15deg);">near_me</span>
+<div class="bg-pink-500 text-white text-xs px-2 py-0.5 rounded-full ml-4 -mt-2 shadow-sm font-medium">Sarah</div>
+</div>
+<!-- Fake Cursor: Mark -->
+<div class="absolute bottom-[40%] right-[30%] z-10">
+<span class="material-symbols-outlined text-purple-500 drop-shadow-md text-3xl" style="transform: rotate(-15deg);">near_me</span>
+<div class="bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full ml-4 -mt-2 shadow-sm font-medium">Mark</div>
+</div>
+</div>
+</div>
+<!-- Overlay Backdrop -->
+<div class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center p-4">
+<!-- Modal Container -->
+<div class="bg-white dark:bg-gray-900 w-full max-w-[400px] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+<!-- Modal Header -->
+<div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">group_add</span>
+<h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 font-display">Collaboration</h2>
+</div>
+<button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-800">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body (Scrollable) -->
+<div class="overflow-y-auto p-5 flex-1 scrollbar-hide">
+<!-- Invite Section -->
+<div class="flex flex-col gap-3 mb-6">
+<label class="text-sm font-semibold text-slate-900 dark:text-slate-100">Invite by email</label>
+<div class="flex gap-2">
+<div class="relative flex-1">
+<input class="w-full pl-3 pr-3 py-2.5 bg-gray-50 dark:bg-gray-800 border-none rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder-gray-400 focus:ring-2 focus:ring-primary/50 transition-all outline-none" placeholder="name@university.edu" type="email"/>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white font-medium text-sm px-4 rounded-lg transition-colors shadow-sm flex items-center">
+                            Invite
+                        </button>
+</div>
+</div>
+<!-- Who's Online Section -->
+<div class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<label class="text-sm font-semibold text-slate-900 dark:text-slate-100">Active Now</label>
+<span class="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">3 Online</span>
+</div>
+<!-- User List -->
+<div class="flex flex-col gap-3">
+<!-- User 1: You -->
+<div class="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors -mx-2">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary font-bold border-2 border-white dark:border-gray-900 shadow-sm" data-alt="Avatar of the current user" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAL1SE4IPWKG3vbznCgYZ0SiplFtGZIBszZrFq0h-pcwX1Rx4EuKENvN3bFLyB8vQpsMkZze3oaLsGvgd_qctHTufcOx4_T3cjJDn0mR6Hw5cPGyOb7dkLBczmhXBkRRxvukG5wOBjlKkQhv_KWp4Qu8JR3F1gHZyex3d--8Bn8dkjxCc9lp0PIK_v5msiMZldA33VzrJhZGDxGW8YAY8bWUDR112eoHAFlsglaQdgLIid2t2fNZ4gPKEgJdwi1ZCCwYxO9ytU1pLkj'); background-size: cover;"></div>
+<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-900 dark:text-slate-100">You</span>
+<span class="text-xs text-gray-500">Owner</span>
+</div>
+</div>
+<span class="text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-md">Owner</span>
+</div>
+<!-- User 2: Sarah -->
+<div class="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors -mx-2">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold border-2 border-white dark:border-gray-900 shadow-sm" data-alt="Avatar of collaborator Sarah" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCf4TXHl6l6mkYyPdfmRzr4dkoMW16F0r_6FAOQ5kXCIZJYabRyyUwl8pEPRYd6-E6TipZHspwvIF-Y_OqwS5PsB5ixB3lnhUQKVmhp_eM9vUvm17LNQpfHzZrqQMJiuyUvDLTDINCPzxr9YJmw8RYZvFqQsWxVLqFkidc3Ca9Y8b_nRX-YpuSmK0HYMsFtK4S446xl9SnGIuCFF3kBWuDFXWgVOvGPNYHbHfPtqkaBpy21_TuuSQM1iI6RcJIFKW43VQrXWQFRKm0e'); background-size: cover;"></div>
+<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-900 dark:text-slate-100">Sarah</span>
+<span class="text-xs text-pink-500">Editing...</span>
+</div>
+</div>
+<button class="flex items-center gap-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2.5 py-1 rounded-md shadow-sm">
+                                Editor
+                                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+</button>
+</div>
+<!-- User 3: Mark -->
+<div class="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-lg transition-colors -mx-2">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold border-2 border-white dark:border-gray-900 shadow-sm" data-alt="Avatar of collaborator Mark" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBQEUM_Gq3SdUHRngZJpTUtjuKig5XIXeB39cYvvMvasetMASdTbvY69kB8yDqG92Y3PI5k1XKdYQdDcp2lNP8Jo99p7AXBUFa9WTu987ah96JIge8Zs04gU0Dk_q52JUYch7dMJ3kgywo_UlMTiWresTrZfwcbp31iJyGfIvY5Eh15FsltWIXobUq2XLCg6KINbTgXOV0fX6BNg9cAx6ntTKIjeKzi7azV2fga4W3japIFC02rY_cE1TWY3YmiyV8meDe-H-1KLAMn'); background-size: cover;"></div>
+<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-900 dark:text-slate-100">Mark</span>
+<span class="text-xs text-purple-500">Viewing</span>
+</div>
+</div>
+<button class="flex items-center gap-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2.5 py-1 rounded-md shadow-sm">
+                                Viewer
+                                <span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Chat Toggle Section -->
+<div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="p-2 bg-primary/10 rounded-full text-primary">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-slate-900 dark:text-slate-100">Live Chat</span>
+<span class="text-xs text-gray-500">Show floating chat bubbles</span>
+</div>
+</div>
+<!-- Toggle Switch -->
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="p-5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 rounded-b-2xl">
+<button class="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-slate-900 dark:text-slate-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold py-3 px-4 rounded-xl transition-all shadow-sm">
+<span class="material-symbols-outlined text-primary">link</span>
+                    Copy Invite Link
+                </button>
+</div>
+</div>
+</div>
+</body></html>
